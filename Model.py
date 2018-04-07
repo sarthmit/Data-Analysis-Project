@@ -36,7 +36,7 @@ def no_label_init():
 	cov_1 = np.identity(6)
 	return pi,mu_0,mu_1,cov_0,cov_1
 
-pi,mu_0,mu_1,cov_0,cov_1 = label_init()
+pi,mu_0,mu_1,cov_0,cov_1 = no_label_init()
 
 ###################################################################
 ###################### GAUSSIAN MIXTURE MODEL #####################
@@ -49,7 +49,7 @@ prev_mu_1 = np.zeros(6)
 prev_cov_0 = np.zeros((6,6))
 prev_cov_1 = np.zeros((6,6))
 
-thresh = 0.0001
+thresh = 0.00001
 
 for i in xrange(steps):
 	theta_0 = (1-pi)*multivariate_normal(mean=mu_0,cov=cov_0) \
@@ -66,9 +66,9 @@ for i in xrange(steps):
 				,features-mu_0)/np.sum(1-z)
 	lik = np.sum(np.log(theta_0 + theta_1))
 	if lik - prev_lik < thresh:
-		if max(pi-prev_pi,np.max(mu_0-prev_mu_0), \
-			np.max(mu_1-prev_mu_1),np.max(cov_0-prev_cov_0), \
-			np.max(cov_1-prev_cov_1)) < thresh:
+		if max(abs(pi-prev_pi),np.max(abs(mu_0-prev_mu_0)), \
+			np.max(abs(mu_1-prev_mu_1)),np.max(abs(cov_0-prev_cov_0)), \
+			np.max(abs(cov_1-prev_cov_1))) < thresh:
 			break
 	prev_lik = lik
 	prev_pi = pi
@@ -82,7 +82,13 @@ z[z>=0.5] = 1
 z = np.array(z,np.int)
 
 acc = np.sum(z==labels)*100./np.size(z)
-print max(acc,100-acc)
+print "Accuracy: ", max(acc,100-acc)
+print "Log Likelihood: ", lik
+print "Mixing Proportion: ", pi
+print "Means of cluster 0: ", mu_0
+print "Means of cluster 1: ", mu_1
+print "Covariance of cluster 0: ", cov_0
+print "Covariane of cluster 1: ", cov_1
 
 X_embedded = TSNE(n_components=2).fit_transform(features)
 plt.rcParams["figure.figsize"] = (8,5)
@@ -125,19 +131,29 @@ mu_1 = np.mean(train_data[train_labels==1],axis=0)
 cov_0 = np.cov(train_data[train_labels==0],rowvar=False)
 cov_1 = np.cov(train_data[train_labels==1],rowvar=False)
 
-var_0 =multivariate_normal(mean=mu_0,cov=cov_0)
-var_1 =multivariate_normal(mean=mu_1,cov=cov_1)
+theta_0 = (1-pi) * multivariate_normal(mean=mu_0,cov=cov_0).pdf(test_data)
+theta_1 = pi * multivariate_normal(mean=mu_1,cov=cov_1).pdf(test_data)
 
-theta_0 = var_0.pdf(test_data)
-theta_1 = var_1.pdf(test_data)
+lik = np.sum(np.log(theta_0 + theta_1))
 
-z = pi * theta_1 / (pi*theta_1 + (1-pi)*theta_0)
+theta_0 = (1-pi) * multivariate_normal(mean=mu_0,cov=cov_0).pdf(test_data)
+theta_1 = pi * multivariate_normal(mean=mu_1,cov=cov_1).pdf(test_data)
+
+z = theta_1 / (theta_1 + theta_0)
 
 z[z<0.5] = 0
 z[z>=0.5] = 1
 z = np.array(z,np.int)
 
-print np.sum(z==test_labels)*100./np.size(z)
+acc = np.sum(z==test_labels)*100./np.size(z)
+
+print "Accuracy: ", max(acc,100-acc)
+print "Log Likelihood: ", lik
+print "Mixing Proportion: ", pi
+print "Means of cluster 0: ", mu_0
+print "Means of cluster 1: ", mu_1
+print "Covariance of cluster 0: ", cov_0
+print "Covariane of cluster 1: ", cov_1
 
 X_embedded = TSNE(n_components=2).fit_transform(features)
 X_embedded = np.concatenate([X_embedded[arr[90:],:], \
@@ -156,3 +172,39 @@ plt.colorbar()
 plt.title('Predicted Labels')
 plt.savefig('Plot_GCM.png',bbox_inches='tight')
 plt.close()
+
+# def tex_vector(a):
+# 	print("\\scalefont{0.75}\\begin{bmatrix}")
+# 	for i in a:
+# 		if i == a[-1]:
+# 			print("%.4f" %i)
+# 		else:
+# 			print("%.4f\\\\" %(i),end=' ')
+# 	print("\\end{bmatrix}\\\\")	
+
+# def tex_matrix(a):
+# 	print("\\scalefont{0.75}\\begin{bmatrix}")
+# 	for i in a:
+# 		for j in i:
+# 			if j == i[-1]:
+# 				print("%.4f \\\\" %(j))
+# 			else:
+# 				print("%.4f & " % (j), end=' ')
+# 	print("\\end{bmatrix}\\\\")
+
+# print("Log Likelihood: ", lik)
+# print("\\begin{gather*}")
+# print("\\begin{aligned}")
+# print("\\hat{\\pi} &= ", pi)
+# print("\\end{aligned}\\\\")
+# print("\\begin{aligned}")
+# print("\\hat{\\mu}_0 &= ")
+# tex_vector(mu_0)
+# print("\\hat{\\mu}_1 &= ")
+# tex_vector(mu_1)
+# print("\\hat{\\Sigma}_0 &= ")
+# tex_matrix(cov_0)
+# print("\\hat{\\Sigma}_1 &= ")
+# tex_matrix(cov_1)
+# print("\\end{aligned}")
+# print("\\end{gather*}")
